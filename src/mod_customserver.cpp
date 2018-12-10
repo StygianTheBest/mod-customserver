@@ -4,9 +4,7 @@
 
 ### Description ###
 ------------------------------------------------------------------------------------------------------------------
-- I built this module to makes testing and compiling features faster
-- It is also is a place for smaller scripts that don't need their own module
-- Config: Enable/Disable sub-scripts
+- This module is for housing smaller scripts and server specific features that don't require their own module.
 
 
 ### Data ###
@@ -20,6 +18,7 @@
 ### Version ###
 ------------------------------------------------------------------------------------------------------------------
 - v2017.09.03 - Release
+
 
 ### Credits ###
 ------------------------------------------------------------------------------------------------------------------
@@ -46,21 +45,20 @@
 
 */
 
+#include <cstring>
 #include "Config.h"
+#include "Player.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
-#include "Player.h"
-#include <cstring>
 
-bool CustomServerEnable = 1;
-bool CustomServerAnnounceModule = 1;
-bool CustomFireworkLevels = 1;
+bool AnnounceModule = true;
+bool FireworkLevels = true;
 
 class CustomServerConfig : public WorldScript
 {
 public:
-    CustomServerConfig() : WorldScript("CustomServerConfig_conf") { }
+    CustomServerConfig() : WorldScript("CustomServerConfig") { }
 
     void OnBeforeConfigLoad(bool reload) override
     {
@@ -74,9 +72,16 @@ public:
             sConfigMgr->LoadMore(cfg_def_file.c_str());
             sConfigMgr->LoadMore(cfg_file.c_str());
 
-            CustomServerAnnounceModule = sConfigMgr->GetBoolDefault("CustomServer.Announce", 1);
-            CustomFireworkLevels = sConfigMgr->GetIntDefault("CustomServer.FireworkLevels", 1);
+            // Load Configuration Settings
+            SetInitialWorldSettings();
         }
+    }
+
+    // Load Configuration Settings
+    void SetInitialWorldSettings()
+    {
+        AnnounceModule = sConfigMgr->GetBoolDefault("CustomServer.Announce", true);
+        FireworkLevels = sConfigMgr->GetBoolDefault("CustomServer.FireworkLevels", true);
     }
 };
 
@@ -90,7 +95,7 @@ public:
     void OnLogin(Player* player)
     {
         // Announce Module
-        if (CustomServerAnnounceModule = true)
+        if (AnnounceModule)
         {
             ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00CustomServer |rmodule.");
         }
@@ -108,7 +113,7 @@ public:
     void OnLevelChanged(Player * player, uint8 oldLevel)
     {
         // Shoot fireworks into the air when a player levels
-        if (CustomFireworkLevels)
+        if (FireworkLevels)
         {
             if (oldLevel == 4)
                 player->CastSpell(player, 11541, true);
@@ -140,7 +145,6 @@ public:
             if (oldLevel == 79)
                 player->CastSpell(player, 11541, true);
         }
-
     }
 };
 
