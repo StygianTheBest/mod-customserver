@@ -4,8 +4,8 @@
 
 ### Description ###
 ------------------------------------------------------------------------------------------------------------------
-- This module is for housing smaller scripts and server specific features that don't require their own module.
-
+- Configuration settings for core modifications.
+- Smaller scripts and features that aren't a module. 
 
 ### Data ###
 ------------------------------------------------------------------------------------------------------------------
@@ -17,14 +17,15 @@
 
 ### Version ###
 ------------------------------------------------------------------------------------------------------------------
+- v2018.12.18 - Add Dungeon Checkpoint, Time Cycle config options
 - v2017.09.03 - Release
 
 
 ### Credits ###
 ------------------------------------------------------------------------------------------------------------------
-#### A module for AzerothCore by StygianTheBest ([stygianthebest.github.io](http://stygianthebest.github.io)) ####
+#### An original module for AzerothCore by StygianTheBest ([stygianthebest.github.io](http://stygianthebest.github.io)) ####
 
-###### Additional Credits include:
+- [Callmephil](https://github.com/callmephil)
 - [Blizzard Entertainment](http://blizzard.com)
 - [TrinityCore](https://github.com/TrinityCore/TrinityCore/blob/3.3.5/THANKS)
 - [SunwellCore](http://www.azerothcore.org/pages/sunwell.pl/)
@@ -51,9 +52,38 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
+#include "DungeonCheckpoints.h"
 
 bool AnnounceModule = true;
 bool FireworkLevels = true;
+
+bool Dynamic_Resurrection::IsInDungeonOrRaid(Player* player)
+{
+    if (sMapStore.LookupEntry(player->GetMapId())->Instanceable())
+        return true; // boolean need to return to a value
+    return false;
+}
+
+bool Dynamic_Resurrection::CheckForSpawnPoint(Player* player)
+{
+    // Find Nearest Creature And Teleport.
+    if (Creature* creature = player->FindNearestCreature(C_Resurrection_ENTRY, C_DISTANCE_CHECK_RANGE))
+        return true;
+    return false;
+
+}
+
+class Dynamic_Resurrections : public PlayerScript
+{
+public:
+    Dynamic_Resurrections() : PlayerScript("Dynamic_Resurrections") {}
+
+    void OnCreatureKill(Player* player, Creature* boss) override
+    {
+        if (sDynRes->IsInDungeonOrRaid(player) && (boss->isWorldBoss() || boss->IsDungeonBoss()))
+            player->SummonCreature(C_Resurrection_ENTRY, boss->GetPositionX(), boss->GetPositionY(), boss->GetPositionZ(), 0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, C_SPAWN_TIMER_TWO_HOURS);
+    }
+};
 
 class CustomServerConfig : public WorldScript
 {
@@ -110,6 +140,13 @@ public:
 
     CustomServer() : PlayerScript("CustomServer") { }
 
+    void OnLogin(Player * player)
+    {
+        // #SCMOD#
+        // Alter player run speed
+        //player->SetSpeed(MOVE_RUN, 4.0, 1);
+
+    }
     void OnLevelChanged(Player * player, uint8 oldLevel)
     {
         // Shoot fireworks into the air when a player levels
@@ -150,6 +187,7 @@ public:
 
 void AddCustomServerScripts()
 {
+    new Dynamic_Resurrections();
     new CustomServerConfig();
     new CustomServerAnnounce();
     new CustomServer();
