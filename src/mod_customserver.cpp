@@ -5,7 +5,7 @@
 ### Description ###
 ------------------------------------------------------------------------------------------------------------------
 - Configuration settings for core modifications.
-- Smaller scripts and features that aren't a module. 
+- Smaller scripts and features that aren't a module.
 
 ### Data ###
 ------------------------------------------------------------------------------------------------------------------
@@ -56,34 +56,7 @@
 
 bool AnnounceModule = true;
 bool FireworkLevels = true;
-
-bool Dynamic_Resurrection::IsInDungeonOrRaid(Player* player)
-{
-    if (sMapStore.LookupEntry(player->GetMapId())->Instanceable())
-        return true; // boolean need to return to a value
-    return false;
-}
-
-bool Dynamic_Resurrection::CheckForSpawnPoint(Player* player)
-{
-    // Find Nearest Creature And Teleport.
-    if (Creature* creature = player->FindNearestCreature(C_Resurrection_ENTRY, C_DISTANCE_CHECK_RANGE))
-        return true;
-    return false;
-
-}
-
-class Dynamic_Resurrections : public PlayerScript
-{
-public:
-    Dynamic_Resurrections() : PlayerScript("Dynamic_Resurrections") {}
-
-    void OnCreatureKill(Player* player, Creature* boss) override
-    {
-        if (sDynRes->IsInDungeonOrRaid(player) && (boss->isWorldBoss() || boss->IsDungeonBoss()))
-            player->SummonCreature(C_Resurrection_ENTRY, boss->GetPositionX(), boss->GetPositionY(), boss->GetPositionZ(), 0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, C_SPAWN_TIMER_TWO_HOURS);
-    }
-};
+bool DungeonCheckpoints = true;
 
 class CustomServerConfig : public WorldScript
 {
@@ -110,8 +83,9 @@ public:
     // Load Configuration Settings
     void SetInitialWorldSettings()
     {
-        AnnounceModule = sConfigMgr->GetBoolDefault("CustomServer.Announce", true);
-        FireworkLevels = sConfigMgr->GetBoolDefault("CustomServer.FireworkLevels", true);
+        AnnounceModule = sConfigMgr->GetBoolDefault("Announce", true);
+        FireworkLevels = sConfigMgr->GetBoolDefault("FireworkLevels", true);
+        DungeonCheckpoints = sConfigMgr->GetBoolDefault("DungeonCheckpoints", true);
     }
 };
 
@@ -127,9 +101,53 @@ public:
         // Announce Module
         if (AnnounceModule)
         {
+            // Announce the module and any core mods or other functions it currently supports
             ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00CustomServer |rmodule.");
+            ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00DayNightCycle |rmodule.");
+            ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00DungeonCheckpoints |rmodule.");
+
+            // Unused mod references
+            // ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00FireworksOnLevelUp |rmodule.");
+            // ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00BetterPetHandling |rmodule.");
         }
 
+    }
+};
+
+bool Dynamic_Resurrection::IsInDungeonOrRaid(Player* player)
+{
+    if (DungeonCheckpoints)
+    {
+        if (sMapStore.LookupEntry(player->GetMapId())->Instanceable())
+            return true; // boolean need to return to a value
+        return false;
+    }
+}
+
+bool Dynamic_Resurrection::CheckForSpawnPoint(Player* player)
+{
+    if (DungeonCheckpoints)
+    {
+        // Find Nearest Creature And Teleport.
+        if (Creature* creature = player->FindNearestCreature(C_Resurrection_ENTRY, C_DISTANCE_CHECK_RANGE))
+            return true;
+        return false;
+    }
+
+}
+
+class Dynamic_Resurrections : public PlayerScript
+{
+public:
+    Dynamic_Resurrections() : PlayerScript("Dynamic_Resurrections") {}
+
+    void OnCreatureKill(Player* player, Creature* boss) override
+    {
+        if (DungeonCheckpoints)
+        {
+            if (sDynRes->IsInDungeonOrRaid(player) && (boss->isWorldBoss() || boss->IsDungeonBoss()))
+                player->SummonCreature(C_Resurrection_ENTRY, boss->GetPositionX(), boss->GetPositionY(), boss->GetPositionZ(), 0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, C_SPAWN_TIMER_TWO_HOURS);
+        }
     }
 };
 
@@ -140,13 +158,14 @@ public:
 
     CustomServer() : PlayerScript("CustomServer") { }
 
+    // Login
     void OnLogin(Player * player)
     {
-        // #SCMOD#
         // Alter player run speed
-        //player->SetSpeed(MOVE_RUN, 4.0, 1);
-
+        // player->SetSpeed(MOVE_RUN, 4.0, 1);
     }
+
+    // Level Change
     void OnLevelChanged(Player * player, uint8 oldLevel)
     {
         // Shoot fireworks into the air when a player levels
@@ -187,8 +206,8 @@ public:
 
 void AddCustomServerScripts()
 {
-    new Dynamic_Resurrections();
     new CustomServerConfig();
     new CustomServerAnnounce();
+    new Dynamic_Resurrections();
     new CustomServer();
 }
